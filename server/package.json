@@ -1,0 +1,31 @@
+{
+  "name": "outpass-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "db:ping": "node src/ping-db.js",
+    "seed": "node src/seed.js",
+    "test": "node --test --test-concurrency=1",
+    "seed:admin": "node src/seed-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "csv-parse": "^7.0.3",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.0.0",
+    "nodemailer": "^10.2.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "mongodb-memory-server": "^10.3.0",
+    "supertest": "^7.1.4"
+  }
+}

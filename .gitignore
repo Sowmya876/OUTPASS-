@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+coverage/
+.local-mongodb/
+DEMO_LOGIN_CREDENTIALS.txt
+.vercel/
+/outpass/

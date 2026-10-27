@@ -1,0 +1,33 @@
+# Preparation only. Applying this Blueprint creates/deploys resources; await approval.
+services:
+  - type: web
+    name: outpass-professor-api
+    runtime: node
+    rootDir: .
+    plan: free
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --omit=dev
+    startCommand: npm run start -w server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.0
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: demo
+      - key: DEMO_MODE
+        value: "true"
+      - key: DATABASE_MODE
+        value: atlas
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: EMAIL_DELIVERY_ENABLED
+        value: "false"
+      - key: CLIENT_ORIGIN
+        sync: false
+      - key: DEMO_MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

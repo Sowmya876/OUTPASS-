@@ -1,0 +1,7 @@
+**/.env
+**/.env.*
+**/DEMO_LOGIN_CREDENTIALS.txt
+.local-mongodb/**
+**/node_modules/**
+**/dist/**
+.git/**

@@ -1,0 +1,26 @@
+{
+  "name": "outpass-project",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web \"npm run dev -w server\" \"npm run dev -w client\"",
+    "test": "npm test -w server",
+    "build": "npm run build -w client",
+    "seed": "npm run seed -w server",
+    "seed:admin": "node server/src/seed-admin.js",
+    "db:local": "node server/src/local-mongo.js",
+    "db:use-local": "node server/src/database-mode.js local",
+    "db:use-atlas": "node server/src/database-mode.js atlas",
+    "demo:local": "node server/src/local-demo.js",
+    "demo:links": "node server/src/local-demo-links.js",
+    "demo:professor": "node server/src/setup-professor-demo.js",
+    "demo:professor:off": "node server/src/setup-professor-demo.js --off"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
