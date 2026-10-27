@@ -6,11 +6,40 @@ import {Auth} from './auth-context';
 export const demoCards=[{role:'student',title:'Student',detail:'Follow your leave request and view its QR pass.',icon:GraduationCap},{role:'warden',title:'Warden',detail:'Review and approve the same fictional request.',icon:ShieldCheck},{role:'guard',title:'Guard',detail:'Verify the QR pass, check out and record return.',icon:ScanLine},{role:'admin',title:'Admin',detail:'Explore fictional student accounts in a read-only view.',icon:Users}];
 export const requestDemoRole=(role,token)=>api('/auth/demo',{token,method:'POST',body:JSON.stringify({role})});
 export function DemoRoleCards({onChoose,busy}){return <div className="demo-role-grid">{demoCards.map(({role,title,detail,icon:Icon})=><button key={role} type="button" className="demo-role-card" disabled={Boolean(busy)} onClick={()=>onChoose(role)} aria-label={'Explore '+title+' demo'}><Icon size={23}/><strong>{title}</strong><span>{detail}</span><small>{busy===role?'Opening dashboard...':'Explore dashboard'} <ArrowRight size={13}/></small></button>)}</div>;}
-export function ExploreDemo({switcher=false,onPrepared}){
+// A sleeping free-tier backend answers 502/503/504 or drops the connection while it wakes;
+// only an explicit {enabled:false} or another client error means demo mode is off.
+export const demoInfoRetry={baseMs:1000,maxMs:10000,attempts:10};
+const temporaryFailure=e=>!e.status||e.status===408||e.status===429||e.status>=500;
+export function useDemoAvailability(skip,{baseMs,maxMs,attempts}=demoInfoRetry){
+ const [state,setState]=useState(skip?'enabled':'checking'),[slow,setSlow]=useState(false),[round,setRound]=useState(0);
+ useEffect(()=>{
+ if(skip)return;
+ // Readiness only reads /demo/info; it never creates demo sessions or requests.
+ const controller=new AbortController(),aborted=()=>controller.signal.aborted;let timer;
+ setState('checking');setSlow(false);
+ const slowTimer=setTimeout(()=>setSlow(true),400);
+ (async()=>{
+ for(let attempt=1;;attempt++){
+ try{const r=await api('/demo/info',{signal:controller.signal});if(!aborted())setState(r.enabled?'enabled':'disabled');return;}
+ catch(e){
+ if(aborted())return;
+ if(!temporaryFailure(e)){setState('disabled');return;}
+ setSlow(true);
+ if(attempt>=attempts){setState('failed');return;}
+ await new Promise(r=>{timer=setTimeout(r,Math.min(maxMs,baseMs*2**(attempt-1)));});
+ if(aborted())return;
+ }
+ }
+ })();
+ return()=>{controller.abort();clearTimeout(timer);clearTimeout(slowTimer);};
+ },[skip,round,baseMs,maxMs,attempts]);
+ return {state,slow,retry:()=>setRound(n=>n+1)};
+}
+export function ExploreDemo({switcher=false,onPrepared,retry}){
  const {user,token,login}=useContext(Auth),navigate=useNavigate();
- const [enabled,setEnabled]=useState(switcher),[open,setOpen]=useState(!switcher),[busy,setBusy]=useState(''),[error,setError]=useState('');
+ const availability=useDemoAvailability(switcher,retry);
+ const [open,setOpen]=useState(!switcher),[busy,setBusy]=useState(''),[error,setError]=useState('');
  const [capacity,setCapacity]=useState(''),prepared=useRef(onPrepared);prepared.current=onPrepared;
- useEffect(()=>{if(!switcher)api('/demo/info').then(r=>setEnabled(r.enabled)).catch(()=>setEnabled(false));},[switcher]);
  useEffect(()=>{
  if(!switcher)return;let active=true;
  async function prepare(){
@@ -21,7 +50,10 @@ export function ExploreDemo({switcher=false,onPrepared}){
  prepare();return()=>{active=false;};
  },[switcher,token,user?.role]);
  async function choose(role){setBusy(role);setError('');try{login(await requestDemoRole(role,user?.isDemo?token:undefined));setOpen(!switcher);navigate('/',{replace:true});}catch(e){setError(e.message);}finally{setBusy('');}}
- if(!enabled)return null;
+ const heading=<><span className="eyebrow">TRY OUTPASS</span><h2>Explore Demo</h2></>;
+ if(availability.state==='checking')return availability.slow?<section className="explore-demo" aria-label="Explore Demo" aria-busy="true">{heading}<p className="muted small" role="status">Connecting to demo server... The free server can take up to a minute to wake up.</p></section>:null;
+ if(availability.state==='failed')return <section className="explore-demo" aria-label="Explore Demo">{heading}<div className="alert" role="alert">The demo server is not responding yet. Please wait a moment and try again.</div><button type="button" className="secondary" onClick={availability.retry}>Retry</button></section>;
+ if(availability.state!=='enabled')return null;
  return <section className={switcher?'demo-switcher':'explore-demo'} aria-label={switcher?'Switch Demo Role':'Explore Demo'}>{switcher?<div className="demo-banner"><span><strong>Professor demo</strong> · Fictional data only · {user.role}</span><button className="secondary" onClick={()=>setOpen(!open)}>Switch Demo Role</button></div>:<><span className="eyebrow">TRY OUTPASS</span><h2>Explore Demo</h2><p className="muted small">No password needed. Explore Student → Warden → Guard using the same fictional request.</p></>}{capacity&&<div className="alert" role="status">{capacity}</div>}{error&&error!==capacity&&<div className="alert" role="alert">{error}</div>}{open&&<DemoRoleCards busy={busy} onChoose={choose}/>}</section>;
 }
 export function DemoAdmin(){
