@@ -1,28 +1,124 @@
-# OutPass ? campus leave management
+# OutPass | Smart Hostel Leave Management
 
-A MERN trimester project with student, warden, guard and administrator roles, and real MongoDB persistence. Existing `outpass/server` dependency files are preserved; the active application is in root `server` and `client`.
+OutPass is a MERN web application that replaces paper hostel leave slips with a digital workflow: students request leave online, wardens approve or reject it, approved requests become QR gate passes, and guards record each checkout and return at the gate.
 
-## Quick start
+## Project Demo Video
 
-Requires Node.js 22.12+ (Node 24 supported), npm, and MongoDB Atlas or local MongoDB.
+**[▶ Watch the OutPass demo video (Google Drive)](https://drive.google.com/file/d/1wKEpi0vpFO39AqohXsU9QWvaOthECApU/view?usp=sharing)**
 
-1. Run `npm install` in the project root.
-2. Configure `server/.env` using `server/.env.example`. This workspace already has a locally generated JWT secret. Keep it private.
-3. For Atlas, put your connection URI in `MONGODB_URI`, include a database name such as `outpass`, allow your IP in Atlas Network Access, and use an Atlas database user. URL-encode special characters in the database password. Never put the URI in the client or commit it.
-4. Run `npm run seed`. It preserves existing fictional demo accounts. New demo accounts receive local, gitignored activation previews in server/.env.student-activation.html, server/.env.warden-activation.html and server/.env.guard-activation.html. Open the relevant preview, follow its link and set your own password. No new plaintext password is stored or logged.
-5. Run `npm run dev`. Open http://localhost:5173. API: http://localhost:5000/api/health.
+A 90-second screen recording of the real application: Student leave request → Warden approval → QR gate pass → Guard checkout and return → Admin view.
+
+## Live Website
+
+**[https://outpass-professor-demo.vercel.app/login](https://outpass-professor-demo.vercel.app/login)**
+
+The live site runs in **Professor Demo Mode** with fictional data only. Click **Student**, **Warden**, **Guard** or **Admin** on the login page to explore that role without a password, and use **Switch Demo Role** to move between roles.
+
+- The backend is on a free hosting plan. If it has been idle, the first visit can take up to a minute while the page shows "Connecting to demo server..."; it retries automatically and offers a Retry button.
+- All visitors share the same four demo accounts. Demo sessions last 30 minutes, and the demo allows 200 leave requests in total.
+- Camera QR scanning needs camera permission. Guards can paste the pass token instead, which uses the same server verification.
+
+## Problem Statement
+
+In many hostels, leave is handled with paper forms and a gate register. Requests get lost or delayed, wardens have no clear view of who is waiting for approval, guards cannot easily confirm that a slip is genuine, and there is no reliable record of when a student actually left and returned.
+
+OutPass solves this with one system in which:
+
+- students submit and track leave requests online;
+- wardens review every pending request in one place and approve or reject it, with a required note for rejections;
+- approval generates a unique, server-verified QR pass that cannot be reused for the same movement;
+- guards validate the pass and record checkout and return, building a timestamped movement history.
+
+## Key Workflow
+
+**Student → Warden → QR Pass → Guard → Admin**
+
+1. **Student** submits a leave request with destination, reason, departure and return time.
+2. **Warden** reviews the pending request and approves it (or rejects it with a note).
+3. **QR Pass**: the approved request gives the student a digital QR gate pass, plus a manual pass token.
+4. **Guard** scans the QR or enters the token, validates the pass, then confirms **checkout**. When the student comes back, the guard validates again and confirms **return**. Each step appears in the gate activity history.
+5. **Admin** manages student accounts. In demo mode the Admin view is **read-only**: it lists the fictional student accounts, and account changes are disabled.
+
+Request states: **pending → approved → checked_out → returned**, or **pending → rejected**.
+
+## Main Features
+
+- **Four roles** with separate dashboards: Student, Warden, Guard and Admin.
+- **Leave requests** with date validation: departure must be in the future and return within 30 days.
+- **Warden review**: approve or reject once, with request statistics and filters.
+- **QR gate passes**: a 256-bit random token per approved request. Only its SHA-256 hash is used for gate lookup, and a pass can record each movement only once.
+- **Gate control**: camera QR scanning or manual token entry; checkout is allowed only inside the leave window; an overdue return is flagged.
+- **Movement history** for students (their own requests) and guards (recent gate activity).
+- **Admin onboarding**: provision students individually or by CSV import, with single-use activation links and password recovery. Email delivery is disabled by default, and invitations are stored as test previews.
+- **Professor Demo Mode**: one-click role logins, role switching, isolated fictional database, read-only Admin, request limit and rate limits.
+- **Security**: bcrypt passwords, signed JWTs with an 8-hour expiry, role checks on every API route, login rate limiting, Helmet security headers, strict CORS and input validation.
+- **Responsive interface** for desktop and mobile browsers.
+
+## Technologies Used
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React 19, Vite 7, React Router 7, Tailwind CSS 4, html5-qrcode, lucide-react |
+| Backend | Node.js 24, Express 5, Mongoose 9, JSON Web Tokens (jsonwebtoken), bcryptjs, qrcode, Helmet, express-rate-limit, CORS, csv-parse, Nodemailer |
+| Database | MongoDB (MongoDB Atlas in production, local MongoDB for development) |
+| Testing | Node.js test runner, Supertest, mongodb-memory-server, jsdom |
+| Hosting | Vercel (frontend), Render (backend), MongoDB Atlas (database) |
+
+## Setup Instructions
+
+**Requirements:** Node.js 24, npm, Git, and either a MongoDB Atlas cluster or a local MongoDB.
+
+1. **Clone and install**
+
+   ```powershell
+   git clone https://github.com/Sowmya876/OUTPASS-.git
+   cd OUTPASS-
+   npm install
+   ```
+
+2. **Configure the backend**: copy `server/.env.example` to `server/.env` and set at least:
+
+   - `MONGODB_URI`: your MongoDB connection string, including a database name such as `/outpass`
+   - `JWT_SECRET`: a random secret of at least 32 characters
+   - `CLIENT_ORIGIN`: `http://localhost:5173` for local development
+
+   `server/.env` is gitignored. Never commit it or put database credentials in the frontend.
+
+3. **Create accounts**
+
+   ```powershell
+   npm run seed        # fictional student, warden and guard accounts
+   npm run seed:admin  # initial admin account
+   ```
+
+   New accounts get a local, gitignored activation preview (`server/.env.*-activation.html`). Open it in a browser and follow the link to set the password. No plaintext password is stored.
+
+4. **Run the app**
+
+   ```powershell
+   npm run dev
+   ```
+
+   Open http://localhost:5173. The API health check is at http://localhost:5000/api/health.
+
+5. **Test and build**
+
+   ```powershell
+   npm test        # automated tests against a temporary MongoDB, separate from your data
+   npm run build   # production frontend build in client/dist
+   ```
+
+More guides: [LOCAL_DEMO.md](LOCAL_DEMO.md) (persistent local MongoDB), [PROFESSOR_DEMO.md](PROFESSOR_DEMO.md) (demo mode), [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) (Vercel + Render + Atlas) and [TESTING.md](TESTING.md).
+
+## Five-minute demonstration (password accounts)
+
+For a local setup with password logins, `npm run seed` creates these fictional accounts:
 
 | Role | Fictional account | Email |
 | --- | --- | --- |
 | Student | Ananya Rao, CSE2026042, Maple Hostel B-204 | student@outpass.demo |
 | Warden | Meera Iyer | warden@outpass.demo |
 | Guard | Ravi Kumar | guard@outpass.demo |
-
-The three Atlas demo accounts have now been created. Their generated credentials are saved locally in `server/.env.demo`, which is gitignored. Open that file in VS Code to sign in; do not share or commit it. Future `npm run seed` executions preserve existing accounts.
-
-Existing demo passwords remain unchanged. New accounts use random hashed bootstrap credentials that are discarded; a single-use activation link lets the owner set their password. For a lost password, use Forgot password on the login screen; in test mode an administrator can view the encrypted email preview for students. Admin recovery is available through the local bootstrap command described below.
-
-## Five-minute demonstration
 
 1. Sign in as Ananya and create a request with departure **one or two minutes from now** and return later today.
 2. Sign out; sign in as Meera, review the request and approve it.
@@ -42,7 +138,7 @@ Use separate browser tabs if desired: authentication is kept in sessionStorage p
 - `npm run start -w server`: backend without file watching.
 - `npm run preview -w client`: inspect the built UI. For full API use during development, use `npm run dev`.
 
-Vite proxies /api to port 5000. If you change the API port, update `client/vite.config.js`. For separate production origins, set `VITE_API_URL` at build time and `CLIENT_ORIGIN` on the API. Serve the frontend build with SPA fallback and proxy /api to Express. This project defaults to local demonstration rather than an Internet deployment.
+Vite proxies /api to port 5000. If you change the API port, update `client/vite.config.js`. For separate production origins, set `VITE_API_URL` at build time and `CLIENT_ORIGIN` on the API. Serve the frontend build with SPA fallback and proxy /api to Express. The hosted deployment is described in [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
 
 ## Architecture for viva
 
@@ -65,7 +161,7 @@ server/test/            real-database API integration tests
 
 React handles presentation; Express enforces all permissions; MongoDB stores users, decisions and movement history. No public registration endpoint: privileged roles are created through local setup only; administrators can provision students through the protected onboarding API.
 
-State machine: **pending ? approved ? checked_out ? returned**, or **pending ? rejected**. Warden decisions can happen once. A 256-bit cryptographically random pass token is created on approval. It is shared only with its owning student; its SHA-256 hash is indexed for gate lookup. Raw token storage allows the student to retrieve the QR again, so protect database access. Lists never expose token fields. Treat the QR as a private bearer credential; guards should also check student identity. A copied QR cannot record the same movement twice.
+State machine: **pending → approved → checked_out → returned**, or **pending → rejected**. Warden decisions can happen once. A 256-bit cryptographically random pass token is created on approval. It is shared only with its owning student; its SHA-256 hash is indexed for gate lookup. Raw token storage allows the student to retrieve the QR again, so protect database access. Lists never expose token fields. Treat the QR as a private bearer credential; guards should also check student identity. A copied QR cannot record the same movement twice.
 
 Checkout is permitted only from departure through returnBy. Early and expired checkouts fail. An overdue student can always be checked back in. Gate mutations use a single conditional MongoDB update; two concurrent checkout or return requests cannot both succeed. Each action records its guard and timestamp.
 
@@ -80,14 +176,14 @@ All endpoints except health/login require Authorization: Bearer <JWT>.
 | Method /api path | Role | Purpose |
 | --- | --- | --- |
 | GET /health | public | DB readiness |
-| POST /auth/login | public | email/password ? token/user |
+| POST /auth/login | public | email/password → token/user |
 | GET /auth/me | any | current account |
 | GET /leaves | student, warden | own requests / all recent requests |
 | POST /leaves | student | destination, reason, departure, returnBy |
 | PATCH /leaves/:id/decision | warden | decision: approved/rejected; note |
 | GET /leaves/:id/pass | owning student | token, QR data URI, leave |
 | GET /stats | warden | total and status counts |
-| POST /gate/validate | guard | token ? leave, nextAction, overdue |
+| POST /gate/validate | guard | token → leave, nextAction, overdue |
 | POST /gate/record | guard | token and action: checkout/return |
 | GET /gate/history | guard | recent movements |
 
